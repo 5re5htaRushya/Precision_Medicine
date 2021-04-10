@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+
+<head>
+    <meta charset="utf-8">
+    <link rel="stylesheet" href="/static/main.css">
+    <script src="https://code.jquery.com/jquery-3.4.1.js"></script>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@2.9.3/dist/Chart.min.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/css/bootstrap.min.css">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/js/bootstrap.min.js"></script>
+    <style>
+
+
+        nav ul li.inactive {
+            color: white;
+            background: #a9bad6;
+        }
+
+        @media screen and (max-width: 599px) {
+            .dropbox {
+                margin-left: 20px;
+            }
+            .dropbox h3 {
+                margin-top: 20px;
+                margin-right: 20px;
+                padding: 8px 15px;
+                margin-bottom: 20px;
+                list-style: none;
+                background-color: #a9bad6;
+                border-radius: 4px;
+                font-size: 24px;
+                color: #333333;
+                font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+                font-weight: 500;
+                line-height: 1.1;
+            }
+            select {
+                width: 100%;
+                height: 34px;
+                padding: 6px 12px;
+                font-size: 14px;
+                line-height: 1.428571429;
+                color: #555555;
+                vertical-align: middle;
+                background-color: #ffffff;
+                border: 1px solid #cccccc;
+                border-radius: 4px;
+                -webkit-box-shadow: inset 0 1px 1px rgb(0 0 0 / 8%);
+                box-shadow: inset 0 1px 1px rgb(0 0 0 / 8%);
+            }
+            label{
+                font-weight: bold;
+            }
+            .button {
+                display: inline-block;
+                padding: 6px 12px;
+                margin-bottom: 0;
+                font-size: 14px;
+                font-weight: normal;
+                line-height: 1.428571429;
+                text-align: center;
+                white-space: nowrap;
+                vertical-align: middle;
+                cursor: pointer;
+                border: 1px solid transparent;
+                border-radius: 4px;
+                -webkit-user-select: none;
+                -moz-user-select: none;
+                -ms-user-select: none;
+                -o-user-select: none;
+                user-select: none;
+                background-color: #8b7500;
+                color: white;
+                margin-top: 5px;
+            }
+
+            .button i {
+                position: relative;
+                top: -1px;
+            }
+
+            .fa-search {
+                padding: 1px ;
+                top: 5px;
+            }
+        }
+        
+        @media screen and (min-width: 600px) {
+            .dropbox {
+                margin-left: 275px;
+            }
+            .dropbox h3 {
+                margin-top: 20px;
+                margin-right: 20px;
+                padding: 8px 15px;
+                margin-bottom: 20px;
+                list-style: none;
+                background-color: #a9bad6;
+                border-radius: 4px;
+                font-size: 24px;
+                color: #333333;
+                font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+                font-weight: 500;
+                line-height: 1.1;
+            }
+
+
+            .flex-container {
+                display: flex;
+                flex-wrap: nowrap;
+            }
+            .flex-container>div {
+                width: 300px;
+                margin: 10px;
+                text-align: center;
+            }
+            select {
+                width: 100%;
+                height: 34px;
+                padding: 6px 12px;
+                font-size: 14px;
+                line-height: 1.428571429;
+                color: #555555;
+                vertical-align: middle;
+                background-color: #ffffff;
+                border: 1px solid #cccccc;
+                border-radius: 4px;
+                -webkit-box-shadow: inset 0 1px 1px rgb(0 0 0 / 8%);
+                box-shadow: inset 0 1px 1px rgb(0 0 0 / 8%);
+            }
+            label{
+                margin-bottom: 5px;
+                font-weight: bold;
+            }
+            .button {
+                display: inline-block;
+                padding: 6px 12px;
+                margin-bottom: 0;
+                font-size: 14px;
+                font-weight: normal;
+                line-height: 1.428571429;
+                text-align: center;
+                white-space: nowrap;
+                vertical-align: middle;
+                cursor: pointer;
+                border: 1px solid transparent;
+                border-radius: 4px;
+                -webkit-user-select: none;
+                -moz-user-select: none;
+                -ms-user-select: none;
+                -o-user-select: none;
+                user-select: none;
+                background-color: #8b7500;
+                color: white;
+                margin-top: 5px;
+            }
+
+            .button i {
+                position: relative;
+                top: -1px;
+            }
+
+            .button:hover {
+                background: #cd9b1d;
+            }
+
+            .fa-search {
+                padding: 1px ;
+                top: 5px;
+            } 
+    }
+
+    @media screen and (min-width: 1920px) {
+        select {
+            margin-left: -50px;
+        }
+    }
+
+    * {
+        margin: 0;
+        padding: 0;
+        user-select: none;
+        box-sizing: border-box;
+        font-family: "Anton", Helvetica, sans-serif;
+    }
+    
+    @media only screen and (max-width: 600px) {
+        .btn {
+            float: right;
+            margin: 20px 30px 0px 0px;
+            cursor: pointer;
+        }
+        .btn span {
+            font-size: 25px;
+            color: white;
+        }
+        .sidebar.show {
+            position: fixed;
+            width: 600px;
+            height: 100%;
+            background: #a9bad6;
+            transition: top 0.4s ease;
+        }
+    }
+    
+    .sidebar {
+        position: fixed;
+        width: 250px;
+        height: 100%;
+        left: -250px;
+        background: #a9bad6;
+        transition: left 0.4s ease;
+        z-index: 1;
+        margin-top: -20px;
+        overflow: visible;
+    }
+    
+    @media only screen and (min-width: 768px) {
+        .sidebar {
+            position: fixed;
+            width: 250px;
+            height: 200%;
+            left: 0px;
+            background: #a9bad6;
+            transition: left 0.4s ease;
+            z-index: 1;
+            margin-top: -20px;
+            overflow: visible;
+        }
+    
+    }
+    
+    .sidebar.show {
+        left: 0px;
+    }
+    
+    nav ul {
+        background: #a9bad6;
+        height: 100%;
+        width: 100%;
+        list-style: none;
+    }
+    
+    nav ul li {
+        line-height: 40px;
+        border-top: 0.4px solid white;
+    }
+    
+    nav ul li:last-child {
+        border-bottom: 0px solid white;
+    }
+    
+    nav ul li a {
+        position: relative;
+        color: white;
+        text-decoration: none;
+        font-size: 14px;
+        padding-left: 15px;
+        font-weight: 500;
+        display: block;
+        width: 100%;
+        border-left: 3px solid transparent;
+        height: 40px;
+    }
+    
+    nav ul li.active a {
+        color: white;
+        background: #6d7a8a;
+    }
+    
+    nav ul li a:hover {
+        background: #7b8a9c;
+    }
+    
+    nav ul ul {
+        position: static;
+    }
+    
+    nav ul ul li {
+        line-height: 40px;
+        border-top: none;
+    }
+    
+    nav ul ul li a {
+        font-size: 14px;
+        color: #fff;
+        padding-left: 30px;
+    }
+    
+    nav ul li.active ul li a {
+        color: #fff;
+        background: #7b8a9c;
+        border-left-color: transparent;
+    }
+    
+    nav ul li.active ul li.sub-active a {
+        color: #fff;
+        background: #7b8a9c;
+        border-left-color: transparent;
+    }
+    
+    nav ul ul li a:hover {
+        color: white!important;
+        background: #7b8a9c!important;
+    }
+    
+    nav ul li a span {
+        position: absolute;
+        top: 50%;
+        right: 20px;
+        transform: translateY(-50%);
+        font-size: 22px;
+        transition: transform 0.4s;
+    }
+    
+    
+    
+    .navbar {
+        overflow: hidden;
+        background-color: #626d7a;
+        height: 80px;
+        position: fixed;
+        top: 0;
+        z-index: 2;
+        width: 100%;
+    }
+    
+    .navbar .logo {
+        pointer-events: none;
+        position: static;
+    }
+    
+    .navbar .logo .bsnl {
+        font-size: 20px;
+        position: relative;
+        top: 10px;
+        margin-left: 55px;
+        color: #0267bc;
+    }
+    
+    .navbar .logo img {
+        position: absolute;
+        margin-top: -1px;
+        height: 50px;
+        width: 50px;
+        border-radius: 50%;
+    }
+    
+    .navbar .tsecl {
+        position: relative;
+        margin: 0px 10px 0px 10px;
+        height: 55px;
+        width: 55px;
+        border-radius: 50%;
+    }
+    
+    .navbar a {
+        float: left;
+        font-size: 16px;
+        color: white;
+        text-align: center;
+        margin-top: -20px;
+        padding: 35px 16px;
+        text-decoration: none;
+    }
+    
+    .main {
+        position: relative;
+        margin-top: 100px;
+    }
+    
+ .img-circle {
+    border-radius: 50%;
+}
+    </style>
+
+</head>
+
+<body>
+    <div class="navbar">
+        <a class="navbar-brand header-text" href="http://182.18.164.20/transformer" style="color:white!important;"> 
+            <!--<img src="/static/images/bsnl.jpg" class="img-circle" style="padding:2px;background-color:white;width:50px;height:50px">-->
+            <tagg style="font-size:40px"> Panace.ai </tagg>
+        </a>
+        <div class="left" style="float: right;">
+            <a href="http://182.18.164.20/transformer"> <!--<img class="tsecl" src="/static/images/tsecl_logo.jpg" alt="tsecl_logo">--></a>
+        </div>
+    </div>
+    <div class="sideme">
+
+    <nav class="sidebar">
+        <ul>
+                <ul class="ai-show">
+                    <li class="active"><a href="/forecasting">Introduction</a></li>
+                    <li><a href="/forecasting">Patient</a></li>
+                    <li><a href="/forecasting">Add Symptoms</a></li>
+                    <li><a href="/fault">Regions</a></li>
+                    <li><a href="/fault">Interview</a></li>
+                    <li><a href="/fault">Results</a></li>
+                </ul>
+            </li>
+
+
+            
+
+
+
+        </ul>
+    </nav>
+
+</div>
+
+    <div class="main">
+        
+
+    
+
+<div class="dropbox">
+    
+    <h1>Introduction</h1>
+    
+</div>
+<style>
+#values tr:nth-child(even){background-color: grey;color: white;}
+
+#values tr:nth-child(odd) {background-color:black;color: white;}
+
+#values th {
+  padding-top: 12px;
+  padding-bottom: 12px;
+  text-align: left;
+  background-color: grey;
+  color: white;
+}
+#values {
+  font-family: Arial, Helvetica, sans-serif;
+  border-collapse: collapse;
+  width: 50%;
+}
+
+#values td, #values th {
+  border: 1px solid #ddd;
+  padding: 8px;
+}
+table.center {
+  margin-left: auto; 
+  margin-right: auto;
+}
+.margin_left {
+  margin-left: 300px;
+}
+</style>
+                      
+
+<br>
+<div class="container">
+  <div class="margin_left">
+    <h2 class="text-center" style="color: white;padding-left: 550px;">Terms of Service</h2><br>  
+    <p>Before using the checkup, please read Terms of Service. Remember that:</p>
+    <ul>
+      <li>Checkup is not a diagnosis. Checkup is for informational purposes and is not a qualified medical opinion.</li>
+      <li>Do not use in emergencies. In case of health emergency, call your local emergency number immediately.</li>
+      <li>Your data is safe. Information that you provide is anonymous and not shared with anyone.</li>
+    </ul>        
+    <br>
+    <form name="screenForm" class="full-width ng-dirty ng-valid-parse ng-valid ng-valid-required" ng-class="{'has-error': invalidInput}" novalidate="" style=""><!-- ngRepeat: choice in questionChoices track by choice.position --><input id="choice_10_17" type="checkbox" class="checkbox-input ng-untouched ng-scope ng-not-empty ng-dirty ng-valid-parse ng-valid ng-valid-required" name="answer" ng-model="formFields[choice.id]" ng-required="question.required" ng-repeat-start="choice in questionChoices track by choice.position" required="required" style=""><label class="checkbox-label ng-scope" for="choice_10_17" ng-repeat-end="" render-html="choice.name">I read and accept <a href="" ng-click="showTermsOfService()" class="ng-scope">Terms of Service</a> and <a href="" ng-click="showPrivacyPolicy()" class="ng-scope">Privacy Policy</a>.</label><!-- end ngRepeat: choice in questionChoices track by choice.position -->
+    </form>
+  </div>
+</div>
+    
+<div class="container">
+    <h2 class="text-center" style="color: white;padding-left: 550px;"><u>Total Demand</u></h2><br>            
+    
+  
+
+</div>
+
+    <script>
+        $('.btn').click(function() {
+            $(this).toggleClass("click");
+            $('.sidebar').toggleClass("show");
+        });
+        $('.ai-btn').click(function() {
+            $('nav ul .ai-show').toggleClass("show1");
+            $('nav ul .first').toggleClass("rotate");
+        });
+        $('nav ul li').click(function() {
+            $(this).addClass("active").siblings().removeClass("active");
+        });
+        $('nav ul ul li').click(function() {
+            $(this).addClass("active").siblings().removeClass("active");
+        });
+    </script>
+
+</body>
+
+</html>
