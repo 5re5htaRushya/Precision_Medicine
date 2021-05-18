@@ -1,0 +1,911 @@
+---
+title: 'Personalised Medicine - EDA with tidy R'
+output:
+  html_document:
+    number_sections: true
+    toc: true
+    fig_width: 7
+    fig_height: 4.5
+    theme: cosmo
+    highlight: tango
+---
+
+# Introduction
+
+This is a comprehensive Exploratory Data Analysis for the [Personalized Medicine: Redefining Cancer Treatment](https://www.kaggle.com/c/msk-redefining-cancer-treatment) challenge. I will be using *ggplot2* and the *tidyverse* tools to study and visualise the structures in the data.
+
+We have been challenged to automatically classify genetic mutations that contribute to cancer tumor growth (so-called "drivers") in the presence of mutations that are don't affect the tumors ("passengers").
+
+The [data](https://www.kaggle.com/c/msk-redefining-cancer-treatment/data) comes in 4 different files. Two csv files and two text files:
+
+- *training/test variants:* These are csv catalogues of the gene mutations together with the target value *Class*, which is the (manually) classified assessment of the mutation. The feature variables are *Gene*, the specific gene where the mutation took place, and *Variation*, the nature of the mutation. The test data of course doesn't have the *Class* values. This is what we have to predict. These two files each are linked through an *ID* variable to another file each, namely:
+
+- *training/test text:* Those contain an extensive description of the evidence that was used (by experts) to manually label the mutation classes.
+
+The text information holds the key to the classification problem and will have to be understood/modelled well to achieve a useful accuracy.
+
+## Load libraries and data files
+
+```{r, message = FALSE}
+library('ggplot2') # visualization
+library('ggthemes') # visualization
+library('scales') # visualization
+library('grid') # visualisation
+library('gridExtra') # visualisation
+library('corrplot') # visualisation
+library('ggraph') # visualisation
+library('igraph') # visualisation
+library('dplyr') # data manipulation
+library('readr') # data input
+library('tibble') # data wrangling
+library('tidyr') # data wrangling
+library('stringr') # string manipulation
+library('forcats') # factor manipulation
+library('tidytext') # text mining
+library('SnowballC') # text analysis
+library('wordcloud') # test visualisation
+```
+
+Reading in the variants data tables:
+
+```{r, message=FALSE, warning=FALSE}
+train <- read_csv('../input/training_variants')
+test  <- read_csv('../input/test_variants')
+```
+
+Reading in the text files currently takes a little bit more effort in R.
+
+```{r}
+train_txt_dump <- tibble(text = read_lines('../input/training_text', skip = 1))
+train_txt <- train_txt_dump %>%
+  separate(text, into = c("ID", "txt"), sep = "\\|\\|")
+train_txt <- train_txt %>%
+  mutate(ID = as.integer(ID))
+
+test_txt_dump <- tibble(text = read_lines('../input/test_text', skip = 1))
+test_txt <- test_txt_dump %>%
+  separate(text, into = c("ID", "txt"), sep = "\\|\\|")
+test_txt <- test_txt %>%
+  mutate(ID = as.integer(ID))
+```
+
+
+# The variants data tables
+
+We start this EDA with a look at the *variants* data files, which are more easily accessible through common visualisation tools.
+
+## First table overviews of the data:
+
+We use the `summary` and `glimpse` tools for a first overview:
+
+```{r}
+train <- train %>%
+  mutate(Gene = factor(Gene),
+         Variation = factor(Variation),
+         Class = factor(Class))
+
+test <- test %>%
+  mutate(Gene = factor(Gene),
+         Variation = factor(Variation))
+
+summary(train, maxsum = 9)
+```
+
+
+```{r}
+glimpse(train)
+```
+
+```{r}
+nrow(train)
+nrow(test)
+```
+
+```{r}
+sum(is.na(train))
+sum(is.na(test))
+```
+
+```{r}
+train %>%
+  group_by(Gene) %>%
+  summarise(ct = n()) %>%
+  arrange(desc(ct))
+
+test %>%
+  group_by(Gene) %>%
+  summarise(ct = n()) %>%
+  arrange(desc(ct))
+
+train %>%
+  group_by(Variation) %>%
+  summarise(ct = n()) %>%
+  arrange(desc(ct))
+
+test %>%
+  group_by(Variation) %>%
+  summarise(ct = n()) %>%
+  arrange(desc(ct))
+```
+
+We find:
+
+- There are 3321 different *IDs* in the training set containing 264 different *Gene* expressions with 2996 different *Variations*. There are 9 different *Classes* indicated by integer levels.
+
+- The *Gene* and *Variation* features contain character strings of various lengths.
+
+- There is 70\% more test data than train data. The data description tells us that "Some of the test data is machine-generated to prevent hand labeling.", which should explain this otherwise curious imbalance.
+
+- There are no missing values in the variants data.
+
+- The most frequent *Genes* in the train vs test data are complete different. In addition, the test data seems to contain significantly more different *Genes* and fewer high-frequency *Genes* than the train data. To some extent, this might be an effect of the added machine-generate entries in the test data (by adding many different random levels). Thereby, the difference in frequency might mirror the true fraction of effective test data over train data.
+
+- In contrast, the most frequent *Variations* in train vs test are largely identical; although, again, the corresponding frequencies are lower in the test data (by a factor of 5 - 10).
+
+
+## Individual feature visualisations
+
+This is the frequency distribution of the most frequent *Gene* values:
+
+```{r fig.align = 'default', warning = FALSE, fig.cap ="Fig. 1", out.width="100%"}
+top_gene <- train %>%
+  group_by(Gene) %>%
+  summarise(ct = n()) %>%
+  filter(ct > 40)
+
+top_gene %>%
+  ggplot(aes(reorder(Gene, -ct, FUN = min), ct)) +
+  geom_point(size = 4) +
+  labs(x = "Gene", y = "Frequency") +
+  coord_flip()
+```
+
+```{r fig.align = 'default', warning = FALSE, fig.cap ="Fig. 2", out.width="100%"}
+top_gene_test <- test %>%
+  group_by(Gene) %>%
+  summarise(ct = n()) %>%
+  filter(ct > 40)
+
+top_gene_test %>%
+  ggplot(aes(reorder(Gene, -ct, FUN = min), ct)) +
+  geom_point(size = 4) +
+  labs(x = "Gene", y = "Frequency") +
+  coord_flip()
+```
+
+We find:
+
+- A relatively small group of *Gene* levels make up a sizeable part of the feature values in both train and test data.
+
+- The test data has fewer high-frequency *Genes*.
+
+These are the most frequent *Variations* in the train (blue) vs test (red) data; confirming what we already saw by comparing the table data:
+
+```{r  fig.align = 'default', message = FALSE, warning = FALSE, fig.cap ="Fig. 3", out.width="100%"}
+foo <- train %>% mutate(set = factor("train")) %>% select(-Class, -ID)
+bar <- test %>% mutate(set = factor("test")) %>% select(-ID)
+
+foo <- full_join(foo, bar)
+
+foo %>%
+  group_by(Variation, set) %>%
+  summarise(ct = n()) %>%
+  filter(ct > 3) %>%
+  ggplot(aes(reorder(Variation, -ct, FUN = median), ct, colour = set)) +
+  geom_point(size = 4) +
+  coord_cartesian(ylim = c(0, 100)) +
+  labs(x = "Variation", y = "Frequency")
+```
+
+
+Here we see how the *Class* target is distributed in the train data:
+
+```{r fig.align = 'default', warning = FALSE, fig.cap ="Fig. 4", out.width="100%"}
+train %>%
+  ggplot(aes(Class)) +
+  geom_bar()
+```
+
+We find:
+
+- *Class* levels 3, 8, and 9 are notably under-represented
+
+- Levels 5 and 6 are of comparable, medium-low frequency
+
+- Levels 1, 2, and 4 are of comparable, medium-high frequency
+
+- Level 7 is clearly the most frequent one
+
+
+## Feature interactions
+
+Now we want to examine how the features interact with each other and with the target *Class* variable.
+
+### *Gene* vs *Class*
+
+First, we will look at the frequency distribution of the overall most frequent *Genes* for the different *Classes*. Note the logarithmic frequency scale.
+
+
+```{r fig.align = 'default', warning = FALSE, fig.cap ="Fig. 5", out.width="100%"}
+train %>%
+  filter(Gene %in% str_c(top_gene$Gene)) %>%
+  ggplot(aes(Gene)) +
+  geom_bar() +
+  scale_y_log10() +
+  theme(axis.text.x  = element_text(angle=90, vjust=0.5, size=7)) +
+  facet_wrap(~ Class)
+```
+
+We see immediately that there are significant differences:
+
+- Some *Genes*, like "PTEN", are predominatly present in a single *Class* (here: 4).
+
+- Other *Genes*, like "TP53", are mainly shared between 2 classes (here: 1 and 4).
+
+- *Classes* 8 and 9 contain none of the most frequent *Genes*.
+
+Here's what it looks like for the *Classes* sorted by *Genes* (again log counts):
+
+```{r fig.align = 'default', warning = FALSE, fig.cap ="Fig. 6", out.width="100%"}
+train %>%
+  filter(Gene %in% str_c(top_gene$Gene)) %>%
+  ggplot(aes(Class)) +
+  geom_bar() +
+  scale_y_log10() +
+  facet_wrap(~ Gene)
+```
+
+This representation underlines our findings about the similar/dominating *Genes* in different *Classes*.
+
+
+### *Gene* vs *Variation*
+
+Next, we are somewhat repurposing a count plot to visualise how the *Variations* are distributed for the most frequent *Genes*. Since there are so many different variations we drop the y-axis labels and merely illustrate how many *Gene* - *Variation* combinations exist in the data.
+
+First the training data:
+
+```{r split=FALSE, fig.align = 'default', warning = FALSE, fig.cap ="Fig. 7", out.width="100%"}
+foo <- train %>%
+  filter(Gene %in% str_c(top_gene$Gene)) %>%
+  group_by(Gene, Variation) %>%
+  summarise(ct = n())
+
+y_labels <- str_sub(foo$Variation, start = 1, end = 5)
+  
+foo %>%
+  ggplot(aes(reorder(Gene, ct, FUN = median), reorder(Variation, ct, FUN = median))) +
+  geom_count() +
+  labs(x = "Gene", y = "Variation") +
+  theme(axis.text.x  = element_text(angle=90, vjust=0.5, size=7),
+        axis.ticks = element_blank(), axis.text.y = element_blank(),
+        legend.position = "none")
+```
+
+Then the test data:
+
+```{r split=FALSE, fig.align = 'default', warning = FALSE, fig.cap ="Fig. 8", out.width="100%"}
+foo <- test %>%
+  filter(Gene %in% str_c(top_gene$Gene)) %>%
+  group_by(Gene, Variation) %>%
+  summarise(ct = n())
+
+y_labels <- str_sub(foo$Variation, start = 1, end = 5)
+  
+foo %>%
+  ggplot(aes(reorder(Gene, ct, FUN = median), reorder(Variation, ct, FUN = median))) +
+  geom_count() +
+  labs(x = "Gene", y = "Variation") +
+  theme(axis.text.x  = element_text(angle=90, vjust=0.5, size=7),
+        axis.ticks = element_blank(), axis.text.y = element_blank(),
+        legend.position = "none")
+```
+
+Once more, the two data sets are rather heterogeneous in this view.
+
+
+# The text files
+
+## Overview
+
+The second kind of data files contain a whole lot of text from what looks like scientific papers or proceedings. Here is the beginning of the first entry:
+
+```{r}
+str_sub(train_txt$txt[1], start = 1, end = 1e3)
+```
+
+Sure enough, we can easily confirm that the first part of the complete entry corresponds to [this paper](https://www.ncbi.nlm.nih.gov/labs/pubmed/24218572-cdk10cyclin-m-is-a-protein-kinase-that-controls-ets2-degradation-and-is-deficient-in-star-syndrome/) and later switches to [this one](https://www.nature.com/ng/journal/v40/n3/pdf/ng.86.pdf?origin=ppub) (and maybe other related ones.) Therefore, this data file appears to be a data dump of the complete publication texts for the papers that the classification was based on (including figure captions, manuscript structure, and sometimes affiliations).
+
+I'm suspecting that a little domain knowledge will go a long way here in determining which keywords are important and which ones aren't. This will be an interesting excercise to see how clearly information is communicated in scientific publications.
+
+
+## On data cleaning and preparations
+
+Here I want to collect various text features, artefacts, and global properties that I noticed during this initial exploration. This list will likely expand as the kernel grows.
+
+- **Scientific terminology and stop words:** Most scientific papers have a common style of language that will be reasonably homogeneous throughout the text files. Words like "result" or "discuss" will be frequent without necessarily containing any signal for our prediction goal. Therefore, below I define my own list of additional stop words.
+
+- **Research field related stop words:** My impression is that the list of stop words could be extended by including characteristic terms of the overall research field that are so ubiquitous that their high frequency may mask genuinely interesting terms. Words such as "mutation", "cancer", or "tumor" appear to be too general to have much distinguishing power here. The TF-IDF below seems to confirm this. It would be interesting to get some feedback from people with domain knowledge about which other terms could a-priori be removed from the text.
+
+- **Paper notation quirks:** Converting the paper text straight to ascii leads to a number of artefacts. None of those will have a big impact individually, but together they might reduce the accuracy of the analysis:
+  - Citation numbers (as used e.g. by Nature magazine) are attached to the corresponding word
+  - Occasionally, there are what seems like webpage navigation commands like "SectionNext" embedden in the text
+  - Author names and affiliations are occasionally included
+
+
+## Feature Engineering
+
+Here we collect a few feature engineering ideas.
+
+### Text length - txt\_len
+
+```{r message = FALSE}
+train_txt <- train_txt %>%
+  mutate(txt_len = str_length(txt),
+         set = "train")
+
+test_txt <- test_txt %>%
+  mutate(txt_len = str_length(txt),
+         set = "test")
+
+combine_txt <- full_join(train_txt,test_txt)
+```
+
+For an early exploration we can look at the distribution of the length of the text features. A priori, I wouldn't expect the length of a paper to be related to the classification outcome; but maybe some classifications require only a single paper while for others it's necessary to check multiple ones. 
+
+First, here is the overall distribution of the text entry lengths in train vs test:
+
+```{r split=FALSE, fig.align = 'default', warning = FALSE, fig.cap ="Fig. 9", out.width="100%"}
+combine_txt %>%
+  ggplot(aes(txt_len, fill = set)) +
+#  geom_density(alpha = 0.5, bw = 5e3) +
+  geom_histogram(bins = 50) +
+  labs(x = "Length of text entry")
+```
+
+The difference in distribution shape might again be due to the machine-generated entries that have been added to the test sample.
+
+Now, let's see whether this distribution changes for the different target *Classes*. First, a facet wrap comparison:
+
+```{r split=FALSE, fig.align = 'default', warning = FALSE, fig.cap ="Fig. 10", out.width="100%"}
+foo <- train_txt %>%
+  select(ID, txt_len)
+bar <- train %>%
+  select(ID, Class)
+
+full_join(foo, bar, by = "ID") %>%
+  ggplot(aes(txt_len)) +
+  geom_density(fill = "red", bw = 5e3) +
+  labs(x = "Length of text entry") +
+  facet_wrap(~ Class)
+
+```
+
+Then an overlay of empirical cumulative density functions:
+
+```{r split=FALSE, fig.align = 'default', warning = FALSE, fig.cap ="Fig. 11", out.width="100%"}
+foo <- train_txt %>%
+  select(ID, txt_len)
+bar <- train %>%
+  select(ID, Class)
+
+full_join(foo, bar, by = "ID") %>%
+  ggplot(aes(txt_len)) +
+  stat_ecdf(geom = "step") +
+  stat_ecdf(aes(txt_len, color = Class), geom = "step") +
+  labs(x = "Length of text entry")
+```
+
+And the median lengths for each class:
+
+```{r}
+foo <- train_txt %>%
+  select(ID, txt_len)
+bar <- train %>%
+  select(ID, Class)
+
+full_join(foo, bar, by = "ID") %>%
+  group_by(Class) %>%
+  summarise(l_med = median(txt_len))
+```
+
+We find:
+
+- There appear to be significant differences in the shape and median of the test length distributions. *Classes* 8 and 9 require on average more text, whereas *Class* 3 has the shortest/fewest papers associated with it.
+
+- For what it's worth, it is tempting to speculate that the apparent multiple peaks in the text length distributions of the individual *Classes* could correspond to the number of papers that make up the clinical evidence.
+
+
+### Missing text values
+
+In the discussion it was [pointed out](https://www.kaggle.com/c/msk-redefining-cancer-treatment/discussion/35621) that a few observations have a "null " entry in their *text* features. Using our *txt\_len* feature we can confirm this finding and easily show that there are no other *text* values with less than 100 characters (just in case a different Null indicator would have been used):
+
+```{r}
+combine_txt %>%
+  filter(txt_len < 100)
+```
+
+
+### Keyword frequency - pedestrian approach
+
+I want to use this competition to learn more about text mining. While I dive deeper into the applications of the various tools and techniques I will document here what I have learnt. If you are a beginner like me, then maybe this approach will be useful for you. If you are an expert then feel free to skip all the entry-level information (and maybe let me know if I get something seriously wrong.)
+
+Before getting started with specialised tools, here is a first approach based on standard string manipulation methods.
+
+An obvious first step in analysing the content of the clinical evidence is to look how often certain keywords are mentioned in the text of the corresponding papers.
+
+We choose the two words "pathogenic" and "benign" that are used in the naming of the 5 categories in [this overview paper](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4544753/). Here we extract their frequency of occurence per observation:
+
+```{r}
+train_txt <- train_txt %>%
+  mutate(f_pathogenic = str_count(txt, "pathogenic"),
+         f_benign = str_count(txt, "benign")
+         )
+```
+
+Those are the frequency distributions of the word "pathogenic" for our 9 classes (note the logarithmic y-axes):
+
+```{r split=FALSE, fig.align = 'default', warning = FALSE, fig.cap ="Fig. 12", out.width="100%"}
+foo <- train_txt %>%
+  select(ID, f_benign, f_pathogenic)
+bar <- train %>%
+  select(ID, Class)
+
+full_join(foo, bar, by = "ID") %>%
+  ggplot(aes(f_pathogenic)) +
+  geom_bar() +
+  scale_y_log10() +
+#  scale_x_log10() +
+  facet_wrap(~ Class)
+```
+
+And here we plot the ratio of the mean occurence per class of the word "pathogenic" over the mean occurence of the word "benign":
+
+```{r split=FALSE, fig.align = 'default', warning = FALSE, fig.cap ="Fig. 13", out.width="100%"}
+foo <- train_txt %>%
+  select(ID, f_benign, f_pathogenic)
+bar <- train %>%
+  select(ID, Class)
+
+full_join(foo, bar, by = "ID") %>%
+  group_by(Class) %>%
+  summarise(mean_benign = mean(f_benign),
+            mean_pathogenic = mean(f_pathogenic),
+            path_ben = mean(f_pathogenic)/mean(f_benign)) %>%
+  ggplot(aes(reorder(Class, -path_ben, FUN = max), path_ben)) +
+  geom_point(colour = "red", size = 3) +
+  labs(x = "Class", y = "# occurences 'pathogenic' / # occurences 'benign'")
+```
+
+We find:
+
+- The facet plot shows that the word "pathogenic" is clearly more frequent in certain *Classes* such as 1, 4, or 5
+
+- The ratio plot confirms this impression and suggests two distinct groups of *Classes*: 2, 7, 8, 9 vs 1, 3, 4. The latter have on average a higher ratio of mentions of "pathogenic" over "benign" than the former. In addition, *Classes* 5 and 6 have an even higher ratio of "pathogenic" over "benign".
+
+Of course, some of these occurences could have said "not pathogenic" or "not benign", which is why we will need to dive further into text analysis to tackle this puzzle.
+
+
+
+## First steps into text analysis with tidytext
+
+As the authors of the *tidytext* [package](https://cran.r-project.org/web/packages/tidytext/index.html) put it: The tidy text format is being defined as a table with one token per row; with a token being a word or another meaningful unit of text (paraphrased). Through tidy text we can use the powerful tools of the *tidyverse* to process and analyse text files. I will follow [this excellent and free online book](http://tidytextmining.com/).
+
+In order to get our text data in a tidy shape, we use the *unnest\_tokens* tool. This also gets rid of punctuation and converts everything to lowercase:
+
+```{r}
+t1 <- train_txt %>% select(ID, txt) %>% unnest_tokens(word, txt)
+head(t1)
+```
+
+The *tidytext* package contains a dictionary of *stop words*, like "and" or "next", which we can remove from our tidy text data. In addition, we will define our own selection of stop words based on the typical structuring language of scientific papers. We also remove tokens that are only numbers or symbols.
+
+```{r}
+data("stop_words")
+my_stopwords <- data_frame(word = c(as.character(1:100),
+                                    "fig", "figure", "et", "al", "table",
+                                    "data", "analysis", "analyze", "study",
+                                    "method", "result", "conclusion", "author",
+                                    "find", "found", "show", "perform",
+                                    "demonstrate", "evaluate", "discuss"))
+t1 <- t1 %>%
+  anti_join(stop_words, by = "word") %>%
+  anti_join(my_stopwords, by = "word") %>%
+  filter(str_detect(word, "[a-z]"))
+```
+
+
+For a first overview, we have a look at the overall most popular words and their frequencies. This is our first serious application of tidyverse and ggplot2 tools to text data:
+
+```{r split=FALSE, fig.align = 'default', warning = FALSE, fig.cap ="Fig. 14", out.width="100%"}
+t1 %>%
+  count(word) %>%
+  filter(n > 5e4) %>%
+  mutate(word = reorder(word, n)) %>%
+  ggplot(aes(word, n)) +
+  geom_col() +
+  xlab(NULL) +
+  coord_flip()
+```
+
+By and large, those are words that we would expect to find in a publication on cancer research and genetics. You will notice that for instance the top 4 words are essentially 2 variants of two basic words each. For our purposes these word variants are likely to obfuscate the signal we are interested in. We can reduce them to their basic meaning, their *word stem*, using a stemming tool.
+
+As far as I can see, tidytext has currently no native stemming function. Therefore, we will use the "SnowballC" package and its "wordStem" tool:
+
+```{r split=FALSE, fig.align = 'default', warning = FALSE, fig.cap ="Fig. 15", out.width="100%"}
+t1 <- t1 %>%
+  mutate(word = wordStem(word))
+
+t1 %>%
+  count(word) %>%
+  filter(n > 5e4) %>%
+  mutate(word = reorder(word, n)) %>%
+  ggplot(aes(word, n)) +
+  geom_col() +
+  xlab(NULL) +
+  coord_flip()
+```
+
+The result shows us the fundamental words that are most frequent in our overall text data. Another way of visualising these frequencies is through a *wordcloud*. Personally, I suspect that wordclouds might be the text equivalent of pie charts. But it's useful to know how to incorporate them into tidy text analysis:
+
+```{r split=FALSE, fig.align = 'default', warning = FALSE, fig.cap ="Fig. 16", out.width="100%"}
+t1 %>% 
+  count(word) %>%
+  with(wordcloud(word, n, max.words = 100))
+```
+
+
+## Class-dependent word frequencies
+
+In order to use these word frequencies for prediction we first need to determine them for the individual *Classes* separately. Below, we join our "text" data with the *Class* information in the "variants" data set. Afterwards, we determine the relative frequency by *Class* of each word.
+
+In this example, we will compare *Class == 7*, the most frequent one, with *Classes* 1 and 2. Also, we will only look at words with more than 1000 occurences per *Class* to keep an overview. Here the ability to use dplyr tools starts to pay off properly:
+
+```{r}
+foo <- train %>%
+  select(ID, Class)
+
+t1_class <- full_join(t1, foo, by = "ID")
+
+frequency <-t1_class %>%
+  count(Class, word) %>%
+  filter(n > 5e2) %>%
+  group_by(Class) %>%
+  mutate(freq = n / sum(n)) %>% 
+  select(-n) %>% 
+  spread(Class, freq) %>% 
+  gather(Class, freq, `1`:`2`)
+```
+
+Then, for a visual overview, we plot the frequency of the words in *Class* 7 against the other two *Classes* (note the logarithmic axes):
+
+```{r split=FALSE, fig.align = 'default', warning = FALSE, fig.cap ="Fig. 17", out.width="100%"}
+ggplot(frequency, aes(x = freq, y = `7`, color = abs(`7` - freq))) +
+  geom_abline(color = "gray40", lty = 2) +
+  geom_jitter(alpha = 0.1, size = 2.5, width = 0.1, height = 0.1) +
+  geom_text(aes(label = word), check_overlap = TRUE, vjust = 1.5) +
+  scale_x_log10(labels = percent_format()) +
+  scale_y_log10(labels = percent_format()) +
+  #scale_color_gradient(limits = c(0, 0.001), low = "darkslategray4", high = "gray95") +
+  facet_wrap(~Class, ncol = 2) +
+  theme(legend.position="none") +
+  labs(y = "Class 7", x = NULL)
+```
+
+In these plots, words that are close to the dashed line (of equal frequency) have similar frequencies in the corresponding *Classes*. Words that are further along a particular *Class* axis (such as "inhibitor" for *Class* 7 vs 1) are more frequent in that *Class*. The blue-gray scale indicates how different the *Class* 7 frequency is from the overall frequency (with higher relative frequencies being lighter). The (slightly jittered) points in the background represent the complete set of (high-frequency) words, whereas the displayed words have been chosen to avoid overlap.
+
+The plots give us a useful overview. For instance, they suggest that *Classes* 2 and 7 are more similar than 1 and 7. For a more systematic approach we compute the correlation coefficients for each frequency set (this time for the full lists, not just above 1000 occurences):
+
+
+```{r fig.align = 'default', warning = FALSE, fig.cap ="Fig. 18", out.width="100%"}
+frequency <-t1_class %>%
+  count(Class, word) %>%
+  #filter(n > 1e3) %>%
+  group_by(Class) %>%
+  mutate(freq = n / sum(n)) %>% 
+  select(-n) %>% 
+  spread(Class, freq)
+
+frequency %>%
+  select(-word) %>%
+  cor(use="complete.obs", method="spearman") %>%
+  corrplot(type="lower", method="number", diag=FALSE)
+```
+
+We find:
+
+- *Classes* 2 and 7 are in fact the most similar ones here, followed by 1 and 4 (correlation coefficients above 0.9)
+
+- Overall, the most different *Class* appears to be number 9, in particular compared to classes 3 and 5 (which are not overwhelming similar to each other). Let's see what word frequency spread looks like for those combinations:
+
+```{r split=FALSE, fig.align = 'default', warning = FALSE, fig.cap ="Fig. 19", out.width="100%"}
+foo <- train %>%
+  select(ID, Class)
+
+t1_class <- full_join(t1, foo, by = "ID")
+
+frequency <-t1_class %>%
+  count(Class, word) %>%
+  filter(n > 2e1) %>%
+  group_by(Class) %>%
+  mutate(freq = n / sum(n)) %>% 
+  select(-n) %>% 
+  spread(Class, freq) %>% 
+  gather(Class, freq, `3`,`5`)
+
+ggplot(frequency, aes(x = freq, y = `9`, color = abs(`9` - freq))) +
+  geom_abline(color = "gray40", lty = 2) +
+  geom_jitter(alpha = 0.1, size = 2.5, width = 0.1, height = 0.1) +
+  geom_text(aes(label = word), check_overlap = TRUE, vjust = 1.5) +
+  scale_x_log10(labels = percent_format()) +
+  scale_y_log10(labels = percent_format()) +
+  #scale_color_gradient(limits = c(0, 0.001), low = "darkslategray4", high = "gray95") +
+  facet_wrap(~Class, ncol = 2) +
+  theme(legend.position="none") +
+  labs(y = "Class 9", x = NULL)
+```
+
+We find:
+
+- There is significantly more of a scatter than in the previous set of plots; especially for *Class* 5 vs 9.
+
+- Interestingly, both "benign" and "pathogen" are more frequent in *Class* 3 vs 9. 
+
+
+## TF-IDF analysis - basics and application
+
+As the competition progresses you will probably see this combination of acronyms more and more often in kernels and discussion. And as a beginner like me, you might not know right away what it means. Let's start with the basics:
+
+- TF stands for *term frequency*; essentially how often a word appears in the text. This is what we measured above. A list of stop-words can be used to filter out frequent words that likely have no impact on the question we want to answer (e.g. "and" or "the"). However, using stop words might not always be an elegant approach. IDF to the rescue.
+
+- IDF means *inverse document frequency*. Here, we give more emphasis to words that are rare within a collection of documents (which in our case means the entire text data.)
+
+- Both measures can be combined into *TF-IDF*, a heuristic index telling us how frequent a word is in a certain context (here: a certain *Class*) within the context of a larger document (here: all *Classes*). You can understand it as a normalisation of the relativ text frequency by the overall document frequency. This will lead to words standing out that are characteristic for a specific *Class*, which is pretty much what we want to achieve in order to train a model.
+
+Tidytext has the function *bind\_tf\_idf* to extract these metrics from a tidy data set that contains words and their counts per *Class*:
+
+```{r}
+frequency <-t1_class %>%
+  count(Class, word)
+
+tf_idf <- frequency %>%
+  bind_tf_idf(word, Class, n)
+```
+
+Let's visualise the most characteristic words and their *Class*:
+
+```{r split=FALSE, fig.align = 'default', warning = FALSE, fig.cap ="Fig. 19", out.width="100%"}
+tf_idf %>%
+  arrange(desc(tf_idf)) %>%
+  mutate(word = factor(word, levels = rev(unique(word)))) %>%
+  top_n(20, tf_idf) %>%
+  ggplot(aes(word, tf_idf, fill = Class)) +
+  geom_col() +
+  labs(x = NULL, y = "tf-idf") +
+  coord_flip()
+
+```
+
+Well, that looks sufficiently technical I suppose. A quick google search reveals that "dnmt3b7" is in fact an "aberrant splice form of a DNA methyltransferase, DNMT3B7, expressed in virtually all cancer cell lines but at very low levels in normal cells." ([citation](http://journals.plos.org/plosone/article?id=10.1371/journal.pone.0117310)). Here it seems to be associated to *Class 8*.
+
+Let's have an overview of the most characteristic terms in each individual *Class*:
+
+
+```{r split=FALSE, fig.align = 'default', warning = FALSE, fig.cap ="Fig. 20", out.width="100%"}
+tf_idf %>%
+  arrange(desc(tf_idf)) %>%
+  mutate(word = factor(word, levels = rev(unique(word)))) %>%
+  group_by(Class) %>%
+  top_n(10, tf_idf) %>%
+  ungroup() %>%  
+  ggplot(aes(word, tf_idf, fill = Class)) +
+  geom_col() +
+  labs(x = NULL, y = "tf-idf") +
+  theme(legend.position = "none") +
+  facet_wrap(~ Class, ncol = 3, scales = "free") +
+  coord_flip()
+```
+
+Again, very technical terms here. We notice, though, that some of them (like "brct") occur in more than one class but still have a high tf-idf.
+
+
+## Word pair frequencies: n-grams
+
+In a similar way as measuring the frequencies of individual words we can also study the properties of groups of words that occur together (like "statistical analysis"). This gives us an idea about the (typical) relationships between words in a certain document.
+
+Tidytext, and other tools, use the concept of the *n-gram*, which *n* being the number of adjacent words we want to study as a group. For instance, a *bigram* is a pair of two words. We can extract all of those pairs in a very similar way as the individual words:
+
+```{r}
+t2 <- train_txt %>% select(ID, txt) %>% unnest_tokens(bigram, txt, token = "ngrams", n = 2)
+head(t2)
+```
+
+In order to filter out the stop words we need to *separate* the bigrams first, and then later *unite* them back together after the filtering. *Separate/unite* are also the names of the corresponding *dplyr* functions:
+
+```{r}
+bi_sep <- t2 %>%
+  separate(bigram, c("word1", "word2"), sep = " ")
+
+bi_filt <- bi_sep %>%
+  filter(!word1 %in% stop_words$word) %>%
+  filter(!word2 %in% stop_words$word) %>%
+  filter(!word1 %in% my_stopwords$word) %>%
+  filter(!word2 %in% my_stopwords$word)
+
+# for later
+bigram_counts <- bi_filt %>%
+  count(word1, word2, sort = TRUE)
+
+t2 <- bi_filt %>%
+  unite(bigram, word1, word2, sep = " ")
+```
+
+Estimate tf-idf:
+
+```{r}
+foo <- train %>%
+  select(ID, Class)
+
+t2_class <- full_join(t2, foo, by = "ID")
+
+t2_tf_idf <- t2_class %>%
+  count(Class, bigram) %>%
+  bind_tf_idf(bigram, Class, n) %>%
+  arrange(desc(tf_idf))
+```
+
+And plot the bigrams per *Class* with the best tf-idf values:
+
+```{r split=FALSE, fig.align = 'default', warning = FALSE, fig.cap ="Fig. 21", out.width="100%"}
+t2_tf_idf %>%
+  arrange(desc(tf_idf)) %>%
+  mutate(bigram = factor(bigram, levels = rev(unique(bigram)))) %>%
+  group_by(Class) %>%
+  top_n(10, tf_idf) %>%
+  ungroup() %>%  
+  ggplot(aes(bigram, tf_idf, fill = Class)) +
+  geom_col() +
+  labs(x = NULL, y = "tf-idf") +
+  theme(legend.position = "none") +
+  facet_wrap(~ Class, ncol = 3, scales = "free") +
+  coord_flip()
+```
+
+Note, that here we didn't reduce similar words to their same stem, which leads to similar occurances within *Classes* (e.g. "dnmt3b7 expression" and "dnmt3b7 expressing" in *Class == 8*). Still, by and large the contents of the *Classes* look sufficiently different to be useful for a prediction.
+
+
+## Networks of bigrams
+
+Once we have the bigrams, i.e. sequences of adjacent words, we can also visualise their connections with other words by building a *network*. A network of words is a combination of connected nodes. Here we use the *igraph* package to build the network and the *ggraph* package to visualise it within the context of the tidyverse:
+
+```{r split=FALSE, fig.align = 'default', warning = FALSE, fig.cap ="Fig. 22", out.width="100%"}
+bigram_graph <- bigram_counts %>%
+  filter(n > 4e3) %>%
+  graph_from_data_frame()
+
+set.seed(1234)
+
+a <- grid::arrow(type = "closed", length = unit(.1, "inches"))
+
+ggraph(bigram_graph, layout = "fr") +
+  geom_edge_link(aes(edge_alpha = n), show.legend = FALSE,
+                 arrow = a, end_cap = circle(.07, 'inches')) +
+  geom_node_point(color = "lightblue", size = 3) +
+  geom_node_text(aes(label = name), vjust = 1, hjust = 1) +
+  theme_void()
+```
+
+Maybe these networks are not so important for solving this particular problem. But they can give non-biologists like me more of an idea how the various technical concepts are connected.
+
+Here the arrows show the direction of the word relation (e.g. "gene expression" rather than "expression gene"). Transparency is applied to these linking arrows according to the frequency of their occurence (rarer ones are more transparent).
+
+
+## Individual Class networks
+
+Let's make the same network plots for the individual *Classes* to investigate their specific terms of importances. In order for this to work, we need to extract the bigram counts separately. For this, we build a short helper function, to which we also assign the flexibility to extract how many bigram combinations to display in the plot. Here, the first parameter of the function is the number of the *Class* and the second is the lower limit for the bigram word combinations.
+
+```{r}
+# input parameters: Class name [1:9], minimum count for bigram graph
+plot_bigram_net_class <- function(clname, bimin){
+
+  foo <- t2_class %>%
+    filter(Class == clname)
+
+  bar <- foo %>%
+    separate(bigram, c("word1", "word2"), sep = " ")
+  
+  bi_filt <- bar %>%
+    filter(!word1 %in% stop_words$word) %>%
+    filter(!word2 %in% stop_words$word) %>%
+    filter(!word1 %in% my_stopwords$word) %>%
+    filter(!word2 %in% my_stopwords$word)
+  
+  bigram_graph <- bi_filt %>%
+    count(word1, word2, sort = TRUE) %>%
+    filter(n > bimin) %>%
+    graph_from_data_frame()
+  
+  set.seed(1234)
+
+  a <- grid::arrow(type = "closed", length = unit(.1, "inches"))
+
+  ggraph(bigram_graph, layout = "fr") +
+    geom_edge_link(aes(edge_alpha = n), show.legend = FALSE,
+                 arrow = a, end_cap = circle(.07, 'inches')) +
+    geom_node_point(color = "lightblue", size = 3) +
+    geom_node_text(aes(label = name), vjust = 1, hjust = 1) +
+    theme_void()
+}
+  
+```
+
+These are the 9 different plots. We try to keep the network plots relatively sparse, so that we can see the important connections more clearly. Feel free to experiment with larger numbers of bigrams here.
+
+In the following, I also note a few terms or combinations that appear characteristic to me. As an absolute non-expert, I will probably also note a few trivial terms that don't relate to our challenge. As the competition goes on, I hope to pick up a few hints on how to clean our input data.
+
+```{r split=FALSE, fig.align = 'default', warning = FALSE, fig.cap ="Fig. 23", out.width="100%"}
+plot_bigram_net_class(1,8e2)
+```
+
+Class 1: We see the connections for "p53" and "brct". We also find the bigram "tumor supressor".
+
+
+```{r split=FALSE, fig.align = 'default', warning = FALSE, fig.cap ="Fig. 24", out.width="100%"}
+plot_bigram_net_class(2, 6.5e2)
+```
+
+Class 2: We see how "ba", "f3", and "3t3" related to "cancer cells".
+
+
+```{r split=FALSE, fig.align = 'default', warning = FALSE, fig.cap ="Fig. 25", out.width="100%"}
+plot_bigram_net_class(3, 2e2)
+```
+
+Class 3: Here, "baf3" and "brca1" seem to be important. Maybe "tyronise kinase" too.
+
+
+```{r split=FALSE, fig.align = 'default', warning = FALSE, fig.cap ="Fig. 26", out.width="100%"}
+plot_bigram_net_class(4, 1e3)
+```
+
+Class 4: Here we have "brca1" and "brct" again, together with another prominent show of "tumor suppressor".
+
+
+```{r split=FALSE, fig.align = 'default', warning = FALSE, fig.cap ="Fig. 27", out.width="100%"}
+plot_bigram_net_class(5, 5e2)
+```
+
+Class 5: We've got "cisplatin sensitivity" and the network of "brca1".
+
+
+```{r split=FALSE, fig.align = 'default', warning = FALSE, fig.cap ="Fig. 28", out.width="100%"}
+plot_bigram_net_class(6, 5e2)
+```
+
+Class 6: Once more "tumor suppression" and also "e2 interaction".
+
+
+```{r split=FALSE, fig.align = 'default', warning = FALSE, fig.cap ="Fig. 29", out.width="100%"}
+plot_bigram_net_class(7, 2e3)
+```
+
+Class 7: Here, "egfr" seems to be important for "mutations" and several isolated bigrams can be spotted.
+
+
+```{r split=FALSE, fig.align = 'default', warning = FALSE, fig.cap ="Fig. 30", out.width="100%"}
+plot_bigram_net_class(8, 5e1)
+```
+
+Class 8: Here we see relatively many connections of 3 terms, like "bcor" with "ccnb3" and "rara" or "gbm" with "adult" and "paediatric".
+
+
+```{r split=FALSE, fig.align = 'default', warning = FALSE, fig.cap ="Fig. 31", out.width="100%"}
+plot_bigram_net_class(9, 1.2e2)
+```
+
+Class 9: One of the denser networks here shows the relations that connect "idh1" and "u2af1".
+
+--
+
+Many thanks for reading and especially to everyone who commented on or upvoted this kernel!
+
+Have fun!
