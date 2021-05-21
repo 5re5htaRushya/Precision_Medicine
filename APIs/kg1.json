@@ -1,0 +1,1 @@
+{"nodes": [{"id": "continuous sneezing"}, {"id": "shivering"}, {"id": "chills"}, {"id": "watering from eyes"}, {"id": "Allergy"}], "links": [{"source": "Allergy", "target": "continuous sneezing"}, {"source": "Allergy", "target": "shivering"}, {"source": "Allergy", "target": "chills"}, {"source": "Allergy", "target": "watering from eyes"}]}
