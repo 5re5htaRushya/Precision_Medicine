@@ -1,0 +1,1 @@
+{"nodes": [{"id": "muscle wasting"}, {"id": "patches in throat"}, {"id": "high fever"}, {"id": "extra marital contacts"}, {"id": "AIDS"}], "links": [{"source": "AIDS", "target": "muscle wasting"}, {"source": "AIDS", "target": "patches in throat"}, {"source": "AIDS", "target": "high fever"}, {"source": "AIDS", "target": "extra marital contacts"}]}

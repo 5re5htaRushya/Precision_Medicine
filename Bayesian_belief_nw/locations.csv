@@ -1,0 +1,42 @@
+,Disease,location
+0,Fungal infection,kg0.json
+1,Allergy,kg1.json
+2,GERD,kg2.json
+3,Chronic cholestasis,kg3.json
+4,Drug Reaction,kg4.json
+5,Peptic ulcer diseae,kg5.json
+6,AIDS,kg6.json
+7,Diabetes ,kg7.json
+8,Gastroenteritis,kg8.json
+9,Bronchial Asthma,kg9.json
+10,Hypertension ,kg10.json
+11,Migraine,kg11.json
+12,Cervical spondylosis,kg12.json
+13,Paralysis (brain hemorrhage),kg13.json
+14,Jaundice,kg14.json
+15,Malaria,kg15.json
+16,Chicken pox,kg16.json
+17,Dengue,kg17.json
+18,Typhoid,kg18.json
+19,hepatitis A,kg19.json
+20,Hepatitis B,kg20.json
+21,Hepatitis C,kg21.json
+22,Hepatitis D,kg22.json
+23,Hepatitis E,kg23.json
+24,Alcoholic hepatitis,kg24.json
+25,Tuberculosis,kg25.json
+26,Common Cold,kg26.json
+27,Pneumonia,kg27.json
+28,Dimorphic hemmorhoids(piles),kg28.json
+29,Heart attack,kg29.json
+30,Varicose veins,kg30.json
+31,Hypothyroidism,kg31.json
+32,Hyperthyroidism,kg32.json
+33,Hypoglycemia,kg33.json
+34,Osteoarthristis,kg34.json
+35,Arthritis,kg35.json
+36,(vertigo) Paroymsal  Positional Vertigo,kg36.json
+37,Acne,kg37.json
+38,Urinary tract infection,kg38.json
+39,Psoriasis,kg39.json
+40,Impetigo,kg40.json

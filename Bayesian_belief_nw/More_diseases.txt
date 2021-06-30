@@ -1,0 +1,44 @@
+list to add:
+Allergies: (google all of them)
+Drug allergy
+Food Allergy
+Contact dermatitis
+Latex allergy
+Allergic asthma
+Allergic rhinitis
+Animal allergy
+Anaphylaxis 
+Allergy to mold
+
+Depression: 
+Major depressive disorder
+Persistent depressive disorder (dysthymia)
+Bipolar disorder (manic depression)
+
+Eyes:
+Glaucoma
+Cataracts
+Age-Related Macular Degeneration (AMD)
+Retinal Detachment
+Conjunctivitis (Pink Eye)
+Uveitis
+Eye Allergies
+Keratoconus
+Blepharitis
+Chalazion (Eyelid Cyst)
+Corneal Ulcer
+Diabetic Retinopathy
+Crossed Eyes (Strabismus)
+Floaters
+Farsightedness (Hyperopia)
+Nearsightedness (Myopia)
+Astigmatism
+Color Blindness
+
+Cancer:
+Lung Cancer
+Skin Cancer
+Colon Cancer
+Breast Cancer
+Prostate Cancer
+

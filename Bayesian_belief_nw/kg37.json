@@ -1,0 +1,1 @@
+{"nodes": [{"id": "skin rash"}, {"id": "pus filled pimples"}, {"id": "blackheads"}, {"id": "scurring"}, {"id": "Acne"}], "links": [{"source": "Acne", "target": "skin rash"}, {"source": "Acne", "target": "pus filled pimples"}, {"source": "Acne", "target": "blackheads"}, {"source": "Acne", "target": "scurring"}]}

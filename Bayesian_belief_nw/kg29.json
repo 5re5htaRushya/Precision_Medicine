@@ -1,0 +1,1 @@
+{"nodes": [{"id": "vomiting"}, {"id": "breathlessness"}, {"id": "sweating"}, {"id": "chest pain"}, {"id": "Heart attack"}], "links": [{"source": "Heart attack", "target": "vomiting"}, {"source": "Heart attack", "target": "breathlessness"}, {"source": "Heart attack", "target": "sweating"}, {"source": "Heart attack", "target": "chest pain"}]}
